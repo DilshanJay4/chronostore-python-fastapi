@@ -39,3 +39,4 @@ HEALTHCHECK --interval=15s --timeout=3s --start-period=10s --retries=3 \
 # TLS is terminated by the reverse proxy; trust its X-Forwarded-* headers only from
 # addresses configured in FORWARDED_ALLOW_IPS.
 CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT} --proxy-headers --forwarded-allow-ips=${FORWARDED_ALLOW_IPS:-127.0.0.1} --no-access-log --no-server-header"]
+

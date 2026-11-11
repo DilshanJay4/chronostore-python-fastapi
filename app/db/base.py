@@ -29,8 +29,11 @@ def money_column(**kwargs: object) -> Mapped[Decimal]:
     return mapped_column(Numeric(MONEY_PRECISION, MONEY_SCALE, asdecimal=True), **kwargs)
 
 
-def enum_column[E: StrEnum](enum_cls: type[E], **kwargs: object) -> Mapped[E]:
+def enum_column[E: StrEnum](
+    enum_cls: type[E], *, constraint_name: str | None = None, **kwargs: object
+) -> Mapped[E]:
     """Store enums as constrained VARCHAR (not native PG enums) to keep migrations simple."""
+    name = constraint_name or enum_cls.__name__.lower()
     return mapped_column(
         Enum(
             enum_cls,
@@ -39,7 +42,7 @@ def enum_column[E: StrEnum](enum_cls: type[E], **kwargs: object) -> Mapped[E]:
             length=32,
             validate_strings=True,
             values_callable=lambda members: [member.value for member in members],
-            name=enum_cls.__name__.lower(),
+            name=name,
         ),
         **kwargs,
     )
