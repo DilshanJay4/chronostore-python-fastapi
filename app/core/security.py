@@ -78,4 +78,3 @@ def decode_access_token(token: str, settings: Settings) -> dict[str, Any]:
         raise AuthenticationError("Access token has expired.") from exc
     except jwt.InvalidTokenError as exc:
         raise AuthenticationError("Invalid access token.") from exc
-

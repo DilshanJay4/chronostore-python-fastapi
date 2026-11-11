@@ -93,4 +93,3 @@ def clear_cart(
 ) -> None:
     service = CartService(session, settings)
     service.clear_cart(current_user.id)
-

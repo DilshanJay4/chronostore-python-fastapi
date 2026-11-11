@@ -63,4 +63,3 @@ def check_auth_rate_limit(request: Request) -> None:
     retry_after = limiter.hit(key)
     if retry_after is not None:
         raise RateLimitedError(retry_after_seconds=retry_after)
-
