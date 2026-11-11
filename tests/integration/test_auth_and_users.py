@@ -134,3 +134,4 @@ def test_user_addresses_and_default_flag(db_session: Session) -> None:
     # Verify addr1 is no longer default in the database
     updated_addr1 = next(a for a in addresses if a.id == addr1.id)
     assert updated_addr1.is_default is False
+

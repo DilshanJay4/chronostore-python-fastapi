@@ -40,3 +40,4 @@ def test_swagger_and_redoc_ui(client: TestClient) -> None:
     res_redoc = client.get("/redoc")
     assert res_redoc.status_code == 200
     assert "redoc" in res_redoc.text.lower()
+

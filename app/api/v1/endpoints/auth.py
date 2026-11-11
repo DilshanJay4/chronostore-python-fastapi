@@ -82,3 +82,4 @@ def logout(
 ) -> None:
     service = AuthService(session, settings)
     service.logout(data.refresh_token)
+

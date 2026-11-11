@@ -45,3 +45,4 @@ class InventoryMovementResponse(APIModel):
     reference_id: uuid.UUID | None
     actor_id: uuid.UUID | None
     created_at: datetime
+

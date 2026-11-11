@@ -175,3 +175,4 @@ uv run pytest -v
 - **Reverse Proxy / TLS Termination:** Production deployments must terminate TLS at an edge reverse proxy (e.g. Nginx, Traefik, AWS ALB) and configure `FORWARDED_ALLOW_IPS` to pass client IPs securely.
 - **Distributed Rate Limiting:** The included sliding window rate limiter is in-memory. For multi-replica horizontal scaling, backing rate limits with a shared Redis store is recommended.
 - **Database Migrations:** Schema upgrades in production should be executed via a controlled job (such as Kubernetes migration job or Docker compose `migrate` runner) before traffic routing.
+

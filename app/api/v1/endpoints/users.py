@@ -115,3 +115,4 @@ def delete_address(
 ) -> None:
     service = UserService(session, settings)
     service.delete_address(current_user.id, address_id)
+
