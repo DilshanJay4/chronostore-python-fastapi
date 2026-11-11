@@ -1,0 +1,16 @@
+[project]
+name = "chronostore-contract-tests"
+version = "1.0.0"
+description = "Backend-agnostic HTTP contract test suite for all 5 ChronoStore backend implementations"
+requires-python = ">=3.12"
+dependencies = [
+    "pytest>=8.3.0",
+    "httpx>=0.27.0",
+    "pyyaml>=6.0.2",
+    "jsonschema[format-nongpl]>=4.23.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --tb=short"
+

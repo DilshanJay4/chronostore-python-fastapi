@@ -1,0 +1,41 @@
+{
+  "seeded_admin": {
+    "email": "admin@chronostore.lk",
+    "password": "Admin@Chrono2026",
+    "full_name": "ChronoStore Administrator",
+    "role": "admin"
+  },
+  "seeded_customer": {
+    "email": "demo@chronostore.lk",
+    "password": "Customer@Chrono2026",
+    "full_name": "Kasun Perera",
+    "role": "customer"
+  },
+  "addresses": {
+    "colombo_home": {
+      "label": "Home",
+      "recipient_name": "Kasun Perera",
+      "phone": "0771234567",
+      "street_line1": "42 Horton Place",
+      "street_line2": "Colombo 07",
+      "city": "Colombo",
+      "postal_code": "00700",
+      "province": "Western",
+      "country_code": "LK",
+      "is_default": true
+    },
+    "kandy_office": {
+      "label": "Office",
+      "recipient_name": "Kasun Perera",
+      "phone": "0812233445",
+      "street_line1": "18 Peradeniya Road",
+      "street_line2": null,
+      "city": "Kandy",
+      "postal_code": "20000",
+      "province": "Central",
+      "country_code": "LK",
+      "is_default": false
+    }
+  }
+}
+

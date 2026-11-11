@@ -1,0 +1,7 @@
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI4ZjE0ZTRlMC00YjA4LTQ4ZjMtODk0MS0wMDEyMzQ1Njc4OWEiLCJyb2xlIjoiY3VzdG9tZXIiLCJpc3MiOiJjaHJvbm9zdG9yZS1hcGkifQ.signature",
+  "token_type": "bearer",
+  "expires_in": 900,
+  "refresh_token": "rt_c84a20d59b1e4c028a4f7c112233445566778899aabbccdd"
+}
+

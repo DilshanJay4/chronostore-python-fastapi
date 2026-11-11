@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chronostore.lk/schemas/v1/auth-and-user.schema.json",
+  "title": "ChronoStore Auth & User Schemas",
+  "$defs": {
+    "TokenResponse": {
+      "type": "object",
+      "required": ["access_token", "token_type", "expires_in", "refresh_token"],
+      "properties": {
+        "access_token": { "type": "string", "minLength": 16 },
+        "token_type": { "type": "string", "const": "bearer" },
+        "expires_in": { "type": "integer", "minimum": 1 },
+        "refresh_token": { "type": "string", "minLength": 16 }
+      }
+    },
+    "UserResponse": {
+      "type": "object",
+      "required": ["id", "email", "full_name", "phone", "role", "is_active", "created_at", "updated_at"],
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "email": { "type": "string", "format": "email" },
+        "full_name": { "type": "string", "minLength": 2, "maxLength": 150 },
+        "phone": { "type": ["string", "null"] },
+        "role": { "type": "string", "enum": ["customer", "admin"] },
+        "is_active": { "type": "boolean" },
+        "created_at": { "type": "string", "format": "date-time" },
+        "updated_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "AddressResponse": {
+      "type": "object",
+      "required": [
+        "id",
+        "label",
+        "recipient_name",
+        "phone",
+        "street_line1",
+        "street_line2",
+        "city",
+        "postal_code",
+        "province",
+        "country_code",
+        "is_default",
+        "created_at",
+        "updated_at"
+      ],
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "label": { "type": "string" },
+        "recipient_name": { "type": "string" },
+        "phone": { "type": "string" },
+        "street_line1": { "type": "string" },
+        "street_line2": { "type": ["string", "null"] },
+        "city": { "type": "string" },
+        "postal_code": { "type": "string" },
+        "province": { "type": "string" },
+        "country_code": { "type": "string", "minLength": 2, "maxLength": 2 },
+        "is_default": { "type": "boolean" },
+        "created_at": { "type": "string", "format": "date-time" },
+        "updated_at": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}
+

@@ -11,6 +11,7 @@ from app.core.exceptions import (
     BusinessRuleViolationError,
     ConflictError,
     NotFoundError,
+    PermissionDeniedError,
 )
 from app.domain.enums import (
     AdjustmentReason,
@@ -20,6 +21,7 @@ from app.domain.enums import (
     PaymentStatus,
     ReturnStatus,
     ShipmentStatus,
+    UserRole,
 )
 from app.domain.state_machines import (
     ACTIVE_SHIPMENT_STATUSES,
@@ -221,7 +223,15 @@ class FulfillmentService:
             raise NotFoundError("Shipment not found.")
         return ShipmentResponse.model_validate(shipment)
 
-    def get_order_shipments(self, order_id: uuid.UUID) -> list[ShipmentResponse]:
+    def get_order_shipments(
+        self, order_id: uuid.UUID, user: User | None = None
+    ) -> list[ShipmentResponse]:
+        order = self.session.execute(select(Order).where(Order.id == order_id)).scalar_one_or_none()
+        if not order:
+            raise NotFoundError("Order not found.")
+        if user and user.role != UserRole.ADMIN and order.user_id != user.id:
+            raise PermissionDeniedError("You do not have permission to view this order's shipments.")
+
         shipments = list(
             self.session.execute(
                 select(Shipment)
@@ -249,8 +259,10 @@ class FulfillmentService:
             .scalar_one_or_none()
         )
 
-        if not order or order.user_id != user.id:
+        if not order:
             raise NotFoundError("Order not found.")
+        if user.role != UserRole.ADMIN and order.user_id != user.id:
+            raise PermissionDeniedError("You do not have permission to request a return for this order.")
 
         if order.status != OrderStatus.DELIVERED:
             raise BusinessRuleViolationError("Returns can only be requested for delivered orders.")
@@ -426,7 +438,9 @@ class FulfillmentService:
         self.session.commit()
         return self.get_return_by_id(ret.id)
 
-    def get_return_by_id(self, return_id: uuid.UUID) -> ReturnResponse:
+    def get_return_by_id(
+        self, return_id: uuid.UUID, user: User | None = None
+    ) -> ReturnResponse:
         ret = (
             self.session.execute(
                 select(ReturnRequest)
@@ -438,4 +452,6 @@ class FulfillmentService:
         )
         if not ret:
             raise NotFoundError("Return request not found.")
+        if user and user.role != UserRole.ADMIN and ret.user_id != user.id:
+            raise PermissionDeniedError("You do not have permission to view this return request.")
         return ReturnResponse.model_validate(ret)

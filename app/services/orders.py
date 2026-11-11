@@ -14,6 +14,7 @@ from app.core.exceptions import (
     BusinessRuleViolationError,
     ConflictError,
     NotFoundError,
+    PermissionDeniedError,
 )
 from app.domain.enums import (
     InventoryMovementType,
@@ -275,12 +276,11 @@ class OrderService:
             .options(joinedload(Order.items), joinedload(Order.payment))
             .where(Order.id == order_id)
         )
-        if not is_admin and user_id:
-            stmt = stmt.where(Order.user_id == user_id)
-
         order = self.session.execute(stmt).unique().scalar_one_or_none()
         if not order:
             raise NotFoundError("Order not found.")
+        if not is_admin and user_id and order.user_id != user_id:
+            raise PermissionDeniedError("You do not have permission to access this order.")
         return OrderResponse.model_validate(order)
 
     def list_orders(
@@ -311,7 +311,7 @@ class OrderService:
             raise NotFoundError("Order not found.")
 
         if not is_admin and order.user_id != user.id:
-            raise NotFoundError("Order not found.")
+            raise PermissionDeniedError("You do not have permission to cancel this order.")
 
         if not is_admin and order.status not in CUSTOMER_CANCELLABLE_ORDER_STATUSES:
             raise BusinessRuleViolationError(

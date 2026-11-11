@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chronostore.lk/schemas/v1/fulfillment-and-return.schema.json",
+  "title": "ChronoStore Fulfillment & Return Schemas",
+  "$defs": {
+    "ShipmentResponse": {
+      "type": "object",
+      "required": [
+        "id",
+        "order_id",
+        "tracking_number",
+        "carrier",
+        "status",
+        "dispatched_at",
+        "delivered_at",
+        "notes",
+        "status_history",
+        "created_at",
+        "updated_at"
+      ],
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "order_id": { "type": "string", "format": "uuid" },
+        "tracking_number": { "type": "string" },
+        "carrier": { "type": "string" },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "dispatched", "delivered", "failed", "returned", "cancelled"]
+        },
+        "dispatched_at": { "type": ["string", "null"], "format": "date-time" },
+        "delivered_at": { "type": ["string", "null"], "format": "date-time" },
+        "notes": { "type": ["string", "null"] },
+        "status_history": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["from_status", "to_status", "notes", "created_at"],
+            "properties": {
+              "from_status": { "type": ["string", "null"] },
+              "to_status": { "type": "string" },
+              "notes": { "type": ["string", "null"] },
+              "created_at": { "type": "string", "format": "date-time" }
+            }
+          }
+        },
+        "created_at": { "type": "string", "format": "date-time" },
+        "updated_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "ReturnResponse": {
+      "type": "object",
+      "required": [
+        "id",
+        "order_id",
+        "status",
+        "reason",
+        "customer_notes",
+        "admin_notes",
+        "inspection_outcome",
+        "inspection_notes",
+        "inspected_at",
+        "restocked",
+        "restocked_at",
+        "refund_amount_lkr",
+        "refund_method",
+        "refund_reference",
+        "refunded_at",
+        "items",
+        "created_at",
+        "updated_at"
+      ],
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "order_id": { "type": "string", "format": "uuid" },
+        "status": {
+          "type": "string",
+          "enum": ["requested", "approved", "rejected", "cancelled", "received", "inspected", "refunded", "closed"]
+        },
+        "reason": {
+          "type": "string",
+          "enum": ["defective", "damaged_in_transit", "wrong_item", "not_as_described", "changed_mind", "other"]
+        },
+        "customer_notes": { "type": "string" },
+        "admin_notes": { "type": ["string", "null"] },
+        "inspection_outcome": { "type": ["string", "null"], "enum": ["resellable", "damaged", "rejected", null] },
+        "inspection_notes": { "type": ["string", "null"] },
+        "inspected_at": { "type": ["string", "null"], "format": "date-time" },
+        "restocked": { "type": "boolean" },
+        "restocked_at": { "type": ["string", "null"], "format": "date-time" },
+        "refund_amount_lkr": { "type": ["string", "null"], "pattern": "^\\d+\\.\\d{2}$" },
+        "refund_method": { "type": ["string", "null"], "enum": ["bank_transfer", "cash", null] },
+        "refund_reference": { "type": ["string", "null"] },
+        "refunded_at": { "type": ["string", "null"], "format": "date-time" },
+        "items": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["id", "order_item_id", "quantity"],
+            "properties": {
+              "id": { "type": "string", "format": "uuid" },
+              "order_item_id": { "type": "string", "format": "uuid" },
+              "quantity": { "type": "integer", "minimum": 1 }
+            }
+          }
+        },
+        "created_at": { "type": "string", "format": "date-time" },
+        "updated_at": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}
+

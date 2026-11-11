@@ -1,0 +1,15 @@
+services:
+  contract-tests:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      BASE_URL: ${BASE_URL:-http://host.docker.internal:8000}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@chronostore.lk}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Admin@Chrono2026}
+      CONTRACTS_ROOT: /contracts-root
+    volumes:
+      - ..:/contracts-root:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+

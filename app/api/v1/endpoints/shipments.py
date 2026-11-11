@@ -39,15 +39,16 @@ admin_returns_router = APIRouter(prefix="/admin/returns", tags=["Admin: Returns"
     "",
     response_model=list[ShipmentResponse],
     summary="List shipments and tracking for an order",
-    responses=AUTH_RESPONSES,
+    responses=responses(AUTH_RESPONSES, NOT_FOUND_RESPONSE),
 )
 def get_order_shipments(
     order_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
     session: Session = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> list[ShipmentResponse]:
     service = FulfillmentService(session, settings)
-    return service.get_order_shipments(order_id)
+    return service.get_order_shipments(order_id, user=current_user)
 
 
 @admin_shipments_router.post(
@@ -111,11 +112,12 @@ def request_return(
 )
 def get_return(
     return_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
     session: Session = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> ReturnResponse:
     service = FulfillmentService(session, settings)
-    return service.get_return_by_id(return_id)
+    return service.get_return_by_id(return_id, user=current_user)
 
 
 @admin_returns_router.post(

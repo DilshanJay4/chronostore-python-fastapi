@@ -1,0 +1,42 @@
+{
+  "pricing_scenarios": [
+    {
+      "description": "Order below 50,000 LKR incurs 500.00 LKR flat shipping fee",
+      "unit_price_lkr": "24500.00",
+      "quantity": 1,
+      "expected_subtotal_lkr": "24500.00",
+      "expected_shipping_fee_lkr": "500.00",
+      "expected_total_lkr": "25000.00"
+    },
+    {
+      "description": "Order at or above 50,000 LKR receives free shipping (0.00 LKR)",
+      "unit_price_lkr": "24500.00",
+      "quantity": 3,
+      "expected_subtotal_lkr": "73500.00",
+      "expected_shipping_fee_lkr": "0.00",
+      "expected_total_lkr": "73500.00"
+    }
+  ],
+  "shipment_carriers": [
+    "Certis Lanka",
+    "Domex",
+    "Pronto Lanka"
+  ],
+  "return_flow": {
+    "reason": "defective",
+    "customer_notes": "Second hand stutters intermittently despite full wind.",
+    "review": {
+      "approved": true,
+      "admin_notes": "Approved for Colombo workshop inspection."
+    },
+    "inspect": {
+      "outcome": "resellable",
+      "notes": "Regulated balance wheel and passed 48-hour timing test.",
+      "restock_resellable": true
+    },
+    "refund": {
+      "refund_method": "bank_transfer",
+      "refund_reference": "BOC-REF-20261111"
+    }
+  }
+}

@@ -1,0 +1,3311 @@
+openapi: 3.1.0
+info:
+  title: ChronoStore API
+  version: 1.0.0
+  summary: Canonical REST API contract for ChronoStore (Sri Lankan Wristwatch E-Commerce Platform)
+  description: |
+    **ChronoStore** is an online wristwatch store serving customers across **Sri Lanka**.
+    This canonical OpenAPI 3.1.0 specification defines the exact request/response contracts,
+    authentication schemes, business validation rules, and error formats that all five
+    ChronoStore backend implementations must satisfy:
+    - `chronostore-python-fastapi` (Python / FastAPI)
+    - `chronostore-java-spring-boot` (Java / Spring Boot)
+    - `chronostore-dotnet-aspnet-core` (C# / ASP.NET Core)
+    - `chronostore-node-express` (TypeScript / Node.js + Express)
+    - `chronostore-php-laravel` (PHP / Laravel)
+
+    ### Core Conventions
+    * **Currency & Monetary Amounts:** Exclusively `LKR`. All monetary amounts are serialized as fixed 2-decimal strings (`"125000.00"`).
+    * **Timestamps:** Timezone-aware UTC in ISO 8601 format (`2026-11-11T10:00:00Z`).
+    * **Errors:** RFC 9457 Problem Details (`application/problem+json`) with stable machine-readable `code` and `request_id`.
+    * **Correlation:** Every response carries an `X-Request-ID` header.
+    * **Payment Model:** Cash on Delivery (`cash_on_delivery`) with explicit collection lifecycle.
+  contact:
+    name: ChronoStore Architecture Team
+    url: https://chronostore.lk
+
+servers:
+  - url: http://localhost:8000
+    description: Local Docker development server
+
+tags:
+  - name: Health
+    description: Liveness and readiness probes.
+  - name: Auth
+    description: Registration, login, and token lifecycle.
+  - name: Users
+    description: Authenticated user's profile and delivery addresses.
+  - name: Brands
+    description: Watch brands catalog.
+  - name: Categories
+    description: Product categories catalog.
+  - name: Products
+    description: Wristwatch catalog with search, filtering, sorting, and pagination.
+  - name: Cart
+    description: Authenticated customer's shopping cart.
+  - name: Checkout
+    description: Idempotent order placement from the cart.
+  - name: Orders
+    description: Customer order history, cancellation, and payment status.
+  - name: Shipments
+    description: Shipment tracking for customers.
+  - name: Returns
+    description: Customer return requests.
+  - name: "Admin: Orders"
+    description: Order confirmation, cancellation, and COD collection.
+  - name: "Admin: Inventory"
+    description: Stock levels, adjustments, and movement ledger.
+  - name: "Admin: Shipments"
+    description: Fulfillment and shipment status changes.
+  - name: "Admin: Returns"
+    description: Return review, receipt, inspection, restocking, and refund.
+  - name: "Admin: Reports"
+    description: Sales, order, best-seller, and inventory reporting.
+  - name: "Admin: Audit"
+    description: Audit trail of sensitive operations.
+
+paths:
+  /health/live:
+    get:
+      tags: [Health]
+      operationId: healthLive
+      summary: Liveness probe
+      description: Reports that the process is running. Performs no dependency checks.
+      responses:
+        "200":
+          description: Process is alive
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/XRequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LivenessResponse"
+              example:
+                status: ok
+
+  /health/ready:
+    get:
+      tags: [Health]
+      operationId: healthReady
+      summary: Readiness probe
+      description: Reports whether the service can handle traffic (database reachable and migrations at head).
+      responses:
+        "200":
+          description: Service is ready
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/XRequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadinessResponse"
+              example:
+                status: ready
+                checks:
+                  database: ok
+                  migrations: ok
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+  /api/v1/auth/register:
+    post:
+      tags: [Auth]
+      operationId: registerUser
+      summary: Register a new customer account
+      description: Creates a new `customer` account with an initialized empty shopping cart.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserRegisterRequest"
+      responses:
+        "201":
+          description: Customer registered
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/XRequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /api/v1/auth/login:
+    post:
+      tags: [Auth]
+      operationId: loginUser
+      summary: Login to obtain access and refresh tokens
+      description: Accepts either `application/json` (`email`, `password`) or OAuth2 `application/x-www-form-urlencoded` (`username`, `password`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "#/components/schemas/OAuth2PasswordFormRequest"
+      responses:
+        "200":
+          description: Access and refresh tokens issued
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/XRequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /api/v1/auth/refresh:
+    post:
+      tags: [Auth]
+      operationId: refreshToken
+      summary: Rotate refresh token and issue new access token
+      description: Revokes the presented refresh token and issues a new token pair. Reusing an already-revoked token triggers replay detection and revokes all active refresh tokens for the user.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshTokenRequest"
+      responses:
+        "200":
+          description: Rotated token pair
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/XRequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /api/v1/auth/logout:
+    post:
+      tags: [Auth]
+      operationId: logoutUser
+      summary: Revoke a refresh token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LogoutRequest"
+      responses:
+        "204":
+          description: Refresh token revoked
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/XRequestId"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /api/v1/users/me:
+    get:
+      tags: [Users]
+      operationId: getCurrentUser
+      summary: Get current user profile
+      security:
+        - BearerAuth: []
+        - OAuth2PasswordBearer: []
+      responses:
+        "200":
+          description: Current user profile
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/XRequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    patch:
+      tags: [Users]
+      operationId: updateCurrentUser
+      summary: Update current user profile
+      security:
+        - BearerAuth: []
+        - OAuth2PasswordBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserProfileUpdate"
+      responses:
+        "200":
+          description: Updated user profile
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/XRequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /api/v1/users/me/addresses:
+    get:
+      tags: [Users]
+      operationId: listMyAddresses
+      summary: List saved customer delivery addresses
+      security:
+        - BearerAuth: []
+        - OAuth2PasswordBearer: []
+      responses:
+        "200":
+          description: List of saved addresses
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/XRequestId"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AddressResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [Users]
+      operationId: createMyAddress
+      summary: Add a new delivery address
+      description: First address for a user is automatically marked `is_default = true`. Marking a new address as default unsets the previous default address.
+      security:
+        - BearerAuth: []
+        - OAuth2PasswordBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddressCreate"
+      responses:
+        "201":
+          description: Created delivery address
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/XRequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AddressResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /api/v1/users/me/addresses/{address_id}:
+    parameters:
+      - name: address_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    patch:
+      tags: [Users]
+      operationId: updateMyAddress
+      summary: Update a saved address
+      security:
+        - BearerAuth: []
+        - OAuth2PasswordBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddressUpdate"
+      responses:
+        "200":
+          description: Updated address
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/XRequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AddressResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+    delete:
+      tags: [Users]
+      operationId: deleteMyAddress
+      summary: Delete a saved address
+      security:
+        - BearerAuth: []
+        - OAuth2PasswordBearer: []
+      responses:
+        "204":
+          description: Address deleted
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/XRequestId"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/brands:
+    get:
+      tags: [Brands]
+      operationId: listBrands
+      summary: List watch brands
+      parameters:
+        - name: include_inactive
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+      responses:
+        "200":
+          description: List of watch brands ordered by name
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/XRequestId"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BrandResponse"
+    post:
+      tags: [Brands]
+      operationId: createBrand
+      summary: Create a new brand (Admin only)
+      security:
+        - BearerAuth: []
+        - OAuth2PasswordBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BrandCreate"
+      responses:
+        "201":
+          description: Created brand
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/XRequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BrandResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /api/v1/brands/{brand_id}:
+    parameters:
+      - name: brand_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [Brands]
+      operationId: getBrand
+      summary: Get brand details
+      responses:
+        "200":
+          description: Brand details
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/XRequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BrandResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags: [Brands]
+      operationId: updateBrand
+      summary: Update a brand (Admin only)
+      security:
+        - BearerAuth: []
+        - OAuth2PasswordBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BrandUpdate"
+      responses:
+        "200":
+          description: Updated brand
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/XRequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BrandResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /api/v1/categories:
+    get:
+      tags: [Categories]
+      operationId: listCategories
+      summary: List categories
+      parameters:
+        - name: include_inactive
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+      responses:
+        "200":
+          description: List of categories ordered by name
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/XRequestId"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CategoryResponse"
+    post:
+      tags: [Categories]
+      operationId: createCategory
+      summary: Create a category (Admin only)
+      security:
+        - BearerAuth: []
+        - OAuth2PasswordBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CategoryCreate"
+      responses:
+        "201":
+          description: Created category
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/XRequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategoryResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /api/v1/categories/{category_id}:
+    parameters:
+      - name: category_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [Categories]
+      operationId: getCategory
+      summary: Get category details
+      responses:
+        "200":
+          description: Category details
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/XRequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategoryResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags: [Categories]
+      operationId: updateCategory
+      summary: Update a category (Admin only)
+      security:
+        - BearerAuth: []
+        - OAuth2PasswordBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CategoryUpdate"
+      responses:
+        "200":
+          description: Updated category
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/XRequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategoryResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /api/v1/products:
+    get:
+      tags: [Products]
+      operationId: listProducts
+      summary: List and filter wristwatch products
+      description: Public callers see only `published` products. Authenticated admins can filter by `status` and receive `available_stock`.
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: search
+          in: query
+          description: Case-insensitive search across name, SKU, model, and description
+          schema:
+            type: string
+        - name: brand_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: category_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: movement_type
+          in: query
+          schema:
+            $ref: "#/components/schemas/WatchMovement"
+        - name: min_price
+          in: query
+          schema:
+            type: number
+            minimum: 0
+        - name: max_price
+          in: query
+          schema:
+            type: number
+            minimum: 0
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/ProductStatus"
+        - name: sort_by
+          in: query
+          schema:
+            type: string
+            enum: [created_at, price_asc, price_desc, name_asc, name_desc]
+            default: created_at
+      responses:
+        "200":
+          description: Paginated wristwatch catalog
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/XRequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductPage"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+    post:
+      tags: [Products]
+      operationId: createProduct
+      summary: Create a new wristwatch product (Admin only)
+      security:
+        - BearerAuth: []
+        - OAuth2PasswordBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductCreate"
+      responses:
+        "201":
+          description: Created wristwatch product with initialized inventory
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/XRequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /api/v1/products/{product_id}:
+    parameters:
+      - name: product_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [Products]
+      operationId: getProduct
+      summary: Get wristwatch product details
+      responses:
+        "200":
+          description: Wristwatch product details
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/XRequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags: [Products]
+      operationId: updateProduct
+      summary: Update a wristwatch product (Admin only)
+      security:
+        - BearerAuth: []
+        - OAuth2PasswordBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductUpdate"
+      responses:
+        "200":
+          description: Updated wristwatch product
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/XRequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /api/v1/cart:
+    get:
+      tags: [Cart]
+      operationId: getCart
+      summary: Get current customer's shopping cart
+      security:
+        - BearerAuth: []
+        - OAuth2PasswordBearer: []
+      responses:
+        "200":
+          description: Customer shopping cart with server-calculated LKR totals
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/XRequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CartResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    delete:
+      tags: [Cart]
+      operationId: clearCart
+      summary: Clear all items from the shopping cart
+      security:
+        - BearerAuth: []
+        - OAuth2PasswordBearer: []
+      responses:
+        "204":
+          description: Cart cleared
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/XRequestId"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/cart/items:
+    post:
+      tags: [Cart]
+      operationId: addCartItem
+      summary: Add an item to the shopping cart
+      security:
+        - BearerAuth: []
+        - OAuth2PasswordBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CartItemAddRequest"
+      responses:
+        "201":
+          description: Updated cart after adding item
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/XRequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CartResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /api/v1/cart/items/{item_id}:
+    parameters:
+      - name: item_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    patch:
+      tags: [Cart]
+      operationId: updateCartItem
+      summary: Update quantity of an item in the shopping cart
+      security:
+        - BearerAuth: []
+        - OAuth2PasswordBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CartItemUpdateRequest"
+      responses:
+        "200":
+          description: Updated cart
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/XRequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CartResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+    delete:
+      tags: [Cart]
+      operationId: removeCartItem
+      summary: Remove an item from the shopping cart
+      security:
+        - BearerAuth: []
+        - OAuth2PasswordBearer: []
+      responses:
+        "200":
+          description: Updated cart after item removal
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/XRequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CartResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/checkout:
+    post:
+      tags: [Checkout]
+      operationId: checkoutCart
+      summary: Checkout from customer cart with idempotency support
+      description: |
+        Atomically locks inventory rows (`SELECT ... FOR UPDATE`), verifies stock availability,
+        creates an order with snapshotted address and line items, reserves stock, creates a
+        `pending` Cash on Delivery payment record, and clears the cart.
+        If `Idempotency-Key` is replayed with the same payload, returns `200 OK` with header
+        `Idempotent-Replayed: true`. Reusing the same `Idempotency-Key` with a different
+        payload returns `409 Conflict`.
+      security:
+        - BearerAuth: []
+        - OAuth2PasswordBearer: []
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: false
+          description: Optional client-generated idempotency key (max 128 chars)
+          schema:
+            type: string
+            maxLength: 128
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CheckoutRequest"
+      responses:
+        "201":
+          description: Order placed
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/XRequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderResponse"
+        "200":
+          description: Idempotent replay of previously placed order
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/XRequestId"
+            Idempotent-Replayed:
+              schema:
+                type: string
+                enum: ["true"]
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /api/v1/orders:
+    get:
+      tags: [Orders]
+      operationId: listMyOrders
+      summary: List customer's orders
+      security:
+        - BearerAuth: []
+        - OAuth2PasswordBearer: []
+      responses:
+        "200":
+          description: List of orders belonging to the authenticated customer
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/XRequestId"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OrderResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/orders/{order_id}:
+    parameters:
+      - name: order_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [Orders]
+      operationId: getOrder
+      summary: Get customer order details
+      description: Accessible by the order owner or an `admin`.
+      security:
+        - BearerAuth: []
+        - OAuth2PasswordBearer: []
+      responses:
+        "200":
+          description: Order details
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/XRequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/orders/{order_id}/cancel:
+    parameters:
+      - name: order_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      tags: [Orders]
+      operationId: cancelOrder
+      summary: Cancel order before shipment
+      description: Cancels a `placed` or `confirmed` order, releases reserved stock, and voids the pending COD payment.
+      security:
+        - BearerAuth: []
+        - OAuth2PasswordBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrderCancelRequest"
+      responses:
+        "200":
+          description: Cancelled order
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/XRequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /api/v1/orders/{order_id}/payment:
+    parameters:
+      - name: order_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [Orders]
+      operationId: getOrderPayment
+      summary: Get order payment status
+      security:
+        - BearerAuth: []
+        - OAuth2PasswordBearer: []
+      responses:
+        "200":
+          description: Payment status details
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/XRequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/admin/orders/{order_id}/payment/collect:
+    parameters:
+      - name: order_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      tags: ["Admin: Orders"]
+      operationId: collectCodPayment
+      summary: Record Cash on Delivery payment collection (Admin only)
+      security:
+        - BearerAuth: []
+        - OAuth2PasswordBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentCollectRequest"
+      responses:
+        "200":
+          description: Updated order with collected COD payment
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/XRequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /api/v1/admin/inventory:
+    get:
+      tags: ["Admin: Inventory"]
+      operationId: listInventory
+      summary: List inventory levels for all products (Admin only)
+      security:
+        - BearerAuth: []
+        - OAuth2PasswordBearer: []
+      responses:
+        "200":
+          description: Inventory records across all products
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/XRequestId"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/InventoryItemResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/v1/admin/inventory/adjustments:
+    post:
+      tags: ["Admin: Inventory"]
+      operationId: adjustInventory
+      summary: Adjust product stock with recorded reason (Admin only)
+      security:
+        - BearerAuth: []
+        - OAuth2PasswordBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InventoryAdjustmentRequest"
+      responses:
+        "200":
+          description: Updated inventory item
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/XRequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InventoryItemResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /api/v1/admin/inventory/movements:
+    get:
+      tags: ["Admin: Inventory"]
+      operationId: listInventoryMovements
+      summary: Audit stock movement history (Admin only)
+      security:
+        - BearerAuth: []
+        - OAuth2PasswordBearer: []
+      parameters:
+        - name: product_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Stock movement audit entries
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/XRequestId"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/InventoryMovementResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/v1/orders/{order_id}/shipments:
+    parameters:
+      - name: order_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [Shipments]
+      operationId: listOrderShipments
+      summary: List shipments and tracking for an order
+      description: Accessible by the order owner or an `admin`.
+      security:
+        - BearerAuth: []
+        - OAuth2PasswordBearer: []
+      responses:
+        "200":
+          description: Shipments for the order
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/XRequestId"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ShipmentResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/admin/orders/{order_id}/shipments:
+    parameters:
+      - name: order_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      tags: ["Admin: Shipments"]
+      operationId: createShipment
+      summary: Create shipment for order (Admin only)
+      description: Creates a `pending` shipment and transitions the order from `placed` to `confirmed` if not already confirmed.
+      security:
+        - BearerAuth: []
+        - OAuth2PasswordBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ShipmentCreateRequest"
+      responses:
+        "201":
+          description: Created shipment
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/XRequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShipmentResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /api/v1/admin/shipments/{shipment_id}/status:
+    parameters:
+      - name: shipment_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    patch:
+      tags: ["Admin: Shipments"]
+      operationId: updateShipmentStatus
+      summary: Update shipment status and tracking events (Admin only)
+      description: |
+        Transitions shipment status:
+        - `pending -> dispatched`: Decrements both `on_hand` and `reserved` inventory, transitions order to `shipped`.
+        - `dispatched -> delivered`: Transitions order to `delivered`.
+        - `dispatched -> failed`: Transitions order to `delivery_failed`.
+        - `failed -> returned`: Restocks `on_hand` inventory and cancels the order.
+      security:
+        - BearerAuth: []
+        - OAuth2PasswordBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ShipmentStatusUpdateRequest"
+      responses:
+        "200":
+          description: Updated shipment
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/XRequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShipmentResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /api/v1/orders/{order_id}/returns:
+    parameters:
+      - name: order_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      tags: [Returns]
+      operationId: createReturnRequest
+      summary: Request a return for an order
+      description: Requires the order to be `delivered` and COD payment `collected`, within the return window.
+      security:
+        - BearerAuth: []
+        - OAuth2PasswordBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReturnRequestCreate"
+      responses:
+        "201":
+          description: Created return request
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/XRequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReturnResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /api/v1/returns/{return_id}:
+    parameters:
+      - name: return_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [Returns]
+      operationId: getReturnRequest
+      summary: Get return request details
+      description: Accessible by the return owner or an `admin`.
+      security:
+        - BearerAuth: []
+        - OAuth2PasswordBearer: []
+      responses:
+        "200":
+          description: Return request details
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/XRequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReturnResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/admin/returns/{return_id}/review:
+    parameters:
+      - name: return_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      tags: ["Admin: Returns"]
+      operationId: reviewReturnRequest
+      summary: Approve or reject a customer return request (Admin only)
+      security:
+        - BearerAuth: []
+        - OAuth2PasswordBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReturnReviewRequest"
+      responses:
+        "200":
+          description: Reviewed return request
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/XRequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReturnResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /api/v1/admin/returns/{return_id}/receive:
+    parameters:
+      - name: return_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      tags: ["Admin: Returns"]
+      operationId: receiveReturnRequest
+      summary: Confirm physical receipt of returned package (Admin only)
+      security:
+        - BearerAuth: []
+        - OAuth2PasswordBearer: []
+      responses:
+        "200":
+          description: Return marked as received
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/XRequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReturnResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /api/v1/admin/returns/{return_id}/inspect:
+    parameters:
+      - name: return_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      tags: ["Admin: Returns"]
+      operationId: inspectReturnRequest
+      summary: Record product inspection results and trigger restocking if resellable (Admin only)
+      security:
+        - BearerAuth: []
+        - OAuth2PasswordBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReturnInspectRequest"
+      responses:
+        "200":
+          description: Return inspected and optionally restocked
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/XRequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReturnResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /api/v1/admin/returns/{return_id}/refund:
+    parameters:
+      - name: return_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      tags: ["Admin: Returns"]
+      operationId: refundReturnRequest
+      summary: Record offline bank transfer / cash refund for returned items (Admin only)
+      security:
+        - BearerAuth: []
+        - OAuth2PasswordBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReturnRefundRequest"
+      responses:
+        "200":
+          description: Refund recorded
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/XRequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReturnResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /api/v1/admin/reports/sales:
+    get:
+      tags: ["Admin: Reports"]
+      operationId: getSalesReport
+      summary: Daily sales and revenue report across validated date range (Admin only)
+      security:
+        - BearerAuth: []
+        - OAuth2PasswordBearer: []
+      parameters:
+        - name: start_date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: end_date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Sales report
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/XRequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SalesReportResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /api/v1/admin/reports/orders:
+    get:
+      tags: ["Admin: Reports"]
+      operationId: getOrdersByStatusReport
+      summary: Order counts and monetary volume grouped by status (Admin only)
+      security:
+        - BearerAuth: []
+        - OAuth2PasswordBearer: []
+      responses:
+        "200":
+          description: Orders grouped by status
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/XRequestId"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OrdersByStatusReport"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/v1/admin/reports/best-sellers:
+    get:
+      tags: ["Admin: Reports"]
+      operationId: getBestSellersReport
+      summary: Top selling wristwatch products by unit volume and revenue (Admin only)
+      security:
+        - BearerAuth: []
+        - OAuth2PasswordBearer: []
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 10
+      responses:
+        "200":
+          description: Best selling products
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/XRequestId"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BestSellingWatch"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/v1/admin/reports/inventory:
+    get:
+      tags: ["Admin: Reports"]
+      operationId: getLowStockReport
+      summary: Low stock and out of stock product reports (Admin only)
+      security:
+        - BearerAuth: []
+        - OAuth2PasswordBearer: []
+      responses:
+        "200":
+          description: Low stock and out of stock items
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/XRequestId"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LowStockProductReport"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/v1/admin/audit-logs:
+    get:
+      tags: ["Admin: Audit", "Admin: Reports"]
+      operationId: getAuditLogs
+      summary: View system audit trail for security-sensitive actions (Admin only)
+      security:
+        - BearerAuth: []
+        - OAuth2PasswordBearer: []
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: Audit log entries
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/XRequestId"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AuditLogResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    OAuth2PasswordBearer:
+      type: oauth2
+      flows:
+        password:
+          tokenUrl: /api/v1/auth/login
+          scopes: {}
+
+  headers:
+    XRequestId:
+      description: Correlation ID for request tracing
+      schema:
+        type: string
+
+  responses:
+    Unauthorized:
+      description: Missing, invalid, or expired access/refresh token
+      headers:
+        X-Request-ID:
+          $ref: "#/components/headers/XRequestId"
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/ProblemDetail"
+    Forbidden:
+      description: Authenticated user lacks required role or resource ownership
+      headers:
+        X-Request-ID:
+          $ref: "#/components/headers/XRequestId"
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/ProblemDetail"
+    NotFound:
+      description: Requested resource was not found
+      headers:
+        X-Request-ID:
+          $ref: "#/components/headers/XRequestId"
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/ProblemDetail"
+    Conflict:
+      description: Conflict with current state of the resource or duplicate unique key
+      headers:
+        X-Request-ID:
+          $ref: "#/components/headers/XRequestId"
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/ProblemDetail"
+    ValidationError:
+      description: Request payload validation or business rule violation
+      headers:
+        X-Request-ID:
+          $ref: "#/components/headers/XRequestId"
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/ProblemDetail"
+    RateLimited:
+      description: Rate limit exceeded
+      headers:
+        X-Request-ID:
+          $ref: "#/components/headers/XRequestId"
+        Retry-After:
+          schema:
+            type: string
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/ProblemDetail"
+    ServiceUnavailable:
+      description: Database or migration readiness check failed
+      headers:
+        X-Request-ID:
+          $ref: "#/components/headers/XRequestId"
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/ProblemDetail"
+
+  schemas:
+    MoneyAmount:
+      type: string
+      format: decimal
+      pattern: '^\d+\.\d{2}$'
+      description: Monetary amount in LKR formatted with exactly 2 decimal places
+      examples: ["125000.00"]
+
+    MoneyInput:
+      oneOf:
+        - type: number
+          exclusiveMinimum: 0
+        - type: string
+          pattern: '^\d+(\.\d{1,2})?$'
+
+    Money:
+      type: object
+      required: [amount, currency]
+      properties:
+        amount:
+          $ref: "#/components/schemas/MoneyAmount"
+        currency:
+          type: string
+          enum: [LKR]
+
+    UserRole:
+      type: string
+      enum: [customer, admin]
+
+    WatchMovement:
+      type: string
+      enum: [quartz, automatic, manual]
+
+    ProductStatus:
+      type: string
+      enum: [draft, published, discontinued]
+
+    StockStatus:
+      type: string
+      enum: [in_stock, low_stock, out_of_stock]
+
+    InventoryMovementType:
+      type: string
+      enum:
+        - adjustment
+        - reservation
+        - reservation_release
+        - dispatch
+        - return_to_sender_restock
+        - return_restock
+
+    AdjustmentReason:
+      type: string
+      enum: [restock, damage, loss, count_correction, other]
+
+    OrderStatus:
+      type: string
+      enum: [placed, confirmed, shipped, delivered, delivery_failed, cancelled]
+
+    PaymentMethod:
+      type: string
+      enum: [cash_on_delivery]
+
+    PaymentStatus:
+      type: string
+      enum: [pending, collected, failed, voided]
+
+    ShipmentStatus:
+      type: string
+      enum: [pending, dispatched, delivered, failed, returned, cancelled]
+
+    ReturnStatus:
+      type: string
+      enum: [requested, approved, rejected, cancelled, received, inspected, refunded, closed]
+
+    ReturnReason:
+      type: string
+      enum: [defective, damaged_in_transit, wrong_item, not_as_described, changed_mind, other]
+
+    InspectionOutcome:
+      type: string
+      enum: [resellable, damaged, rejected]
+
+    RefundMethod:
+      type: string
+      enum: [bank_transfer, cash]
+
+    LivenessResponse:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+
+    ReadinessResponse:
+      type: object
+      required: [status, checks]
+      properties:
+        status:
+          type: string
+          enum: [ready]
+        checks:
+          type: object
+          additionalProperties:
+            type: string
+
+    ValidationErrorItem:
+      type: object
+      required: [loc, msg, type]
+      properties:
+        loc:
+          type: array
+          items:
+            type: string
+        msg:
+          type: string
+        type:
+          type: string
+
+    ProblemDetail:
+      type: object
+      required: [type, title, status, detail, code]
+      properties:
+        type:
+          type: string
+          examples: ["urn:chronostore:problem:not-found"]
+        title:
+          type: string
+          examples: ["Resource not found"]
+        status:
+          type: integer
+          examples: [404]
+        detail:
+          type: string
+          examples: ["Product not found."]
+        instance:
+          type: [string, "null"]
+        code:
+          type: string
+          examples: ["NOT_FOUND"]
+        request_id:
+          type: [string, "null"]
+        errors:
+          type: [array, "null"]
+          items:
+            $ref: "#/components/schemas/ValidationErrorItem"
+
+    UserRegisterRequest:
+      type: object
+      additionalProperties: false
+      required: [email, password, full_name]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+          maxLength: 128
+        full_name:
+          type: string
+          minLength: 2
+          maxLength: 150
+        phone:
+          type: [string, "null"]
+          maxLength: 30
+
+    LoginRequest:
+      type: object
+      additionalProperties: false
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 1
+          maxLength: 128
+
+    OAuth2PasswordFormRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          format: email
+        password:
+          type: string
+        grant_type:
+          type: string
+        scope:
+          type: string
+
+    TokenResponse:
+      type: object
+      required: [access_token, token_type, expires_in, refresh_token]
+      properties:
+        access_token:
+          type: string
+        token_type:
+          type: string
+          enum: [bearer]
+        expires_in:
+          type: integer
+        refresh_token:
+          type: string
+
+    RefreshTokenRequest:
+      type: object
+      additionalProperties: false
+      required: [refresh_token]
+      properties:
+        refresh_token:
+          type: string
+          minLength: 16
+
+    LogoutRequest:
+      type: object
+      additionalProperties: false
+      required: [refresh_token]
+      properties:
+        refresh_token:
+          type: string
+          minLength: 16
+
+    UserResponse:
+      type: object
+      required: [id, email, full_name, phone, role, is_active, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        full_name:
+          type: string
+        phone:
+          type: [string, "null"]
+        role:
+          $ref: "#/components/schemas/UserRole"
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    UserProfileUpdate:
+      type: object
+      additionalProperties: false
+      properties:
+        full_name:
+          type: [string, "null"]
+          minLength: 2
+          maxLength: 150
+        phone:
+          type: [string, "null"]
+          maxLength: 30
+
+    AddressCreate:
+      type: object
+      additionalProperties: false
+      required: [recipient_name, phone, street_line1, city, postal_code, province]
+      properties:
+        label:
+          type: string
+          minLength: 1
+          maxLength: 50
+          default: Home
+        recipient_name:
+          type: string
+          minLength: 2
+          maxLength: 150
+        phone:
+          type: string
+          minLength: 5
+          maxLength: 30
+        street_line1:
+          type: string
+          minLength: 3
+          maxLength: 255
+        street_line2:
+          type: [string, "null"]
+          maxLength: 255
+        city:
+          type: string
+          minLength: 2
+          maxLength: 100
+        postal_code:
+          type: string
+          minLength: 3
+          maxLength: 20
+        province:
+          type: string
+          minLength: 2
+          maxLength: 100
+        country_code:
+          type: string
+          minLength: 2
+          maxLength: 2
+          default: LK
+        is_default:
+          type: boolean
+          default: false
+
+    AddressUpdate:
+      type: object
+      additionalProperties: false
+      properties:
+        label:
+          type: [string, "null"]
+          minLength: 1
+          maxLength: 50
+        recipient_name:
+          type: [string, "null"]
+          minLength: 2
+          maxLength: 150
+        phone:
+          type: [string, "null"]
+          minLength: 5
+          maxLength: 30
+        street_line1:
+          type: [string, "null"]
+          minLength: 3
+          maxLength: 255
+        street_line2:
+          type: [string, "null"]
+          maxLength: 255
+        city:
+          type: [string, "null"]
+          minLength: 2
+          maxLength: 100
+        postal_code:
+          type: [string, "null"]
+          minLength: 3
+          maxLength: 20
+        province:
+          type: [string, "null"]
+          minLength: 2
+          maxLength: 100
+        is_default:
+          type: [boolean, "null"]
+
+    AddressResponse:
+      type: object
+      required:
+        - id
+        - label
+        - recipient_name
+        - phone
+        - street_line1
+        - street_line2
+        - city
+        - postal_code
+        - province
+        - country_code
+        - is_default
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        label:
+          type: string
+        recipient_name:
+          type: string
+        phone:
+          type: string
+        street_line1:
+          type: string
+        street_line2:
+          type: [string, "null"]
+        city:
+          type: string
+        postal_code:
+          type: string
+        province:
+          type: string
+        country_code:
+          type: string
+        is_default:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    BrandCreate:
+      type: object
+      additionalProperties: false
+      required: [name, slug]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        slug:
+          type: string
+          minLength: 1
+          maxLength: 120
+          pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$'
+        description:
+          type: [string, "null"]
+        website_url:
+          type: [string, "null"]
+          maxLength: 255
+        is_active:
+          type: boolean
+          default: true
+
+    BrandUpdate:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: [string, "null"]
+          minLength: 1
+          maxLength: 100
+        slug:
+          type: [string, "null"]
+          minLength: 1
+          maxLength: 120
+          pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$'
+        description:
+          type: [string, "null"]
+        website_url:
+          type: [string, "null"]
+          maxLength: 255
+        is_active:
+          type: [boolean, "null"]
+
+    BrandResponse:
+      type: object
+      required: [id, name, slug, description, website_url, is_active, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        slug:
+          type: string
+        description:
+          type: [string, "null"]
+        website_url:
+          type: [string, "null"]
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CategoryCreate:
+      type: object
+      additionalProperties: false
+      required: [name, slug]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        slug:
+          type: string
+          minLength: 1
+          maxLength: 120
+          pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$'
+        description:
+          type: [string, "null"]
+        is_active:
+          type: boolean
+          default: true
+
+    CategoryUpdate:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: [string, "null"]
+          minLength: 1
+          maxLength: 100
+        slug:
+          type: [string, "null"]
+          minLength: 1
+          maxLength: 120
+          pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$'
+        description:
+          type: [string, "null"]
+        is_active:
+          type: [boolean, "null"]
+
+    CategoryResponse:
+      type: object
+      required: [id, name, slug, description, is_active, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        slug:
+          type: string
+        description:
+          type: [string, "null"]
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ProductCreate:
+      type: object
+      additionalProperties: false
+      required:
+        - sku
+        - name
+        - model
+        - description
+        - brand_id
+        - category_id
+        - movement_type
+        - case_material
+        - strap_material
+        - water_resistance
+        - dial_color
+        - price_lkr
+      properties:
+        sku:
+          type: string
+          minLength: 3
+          maxLength: 64
+          pattern: '^[A-Za-z0-9\-_]+$'
+        name:
+          type: string
+          minLength: 2
+          maxLength: 200
+        model:
+          type: string
+          minLength: 1
+          maxLength: 100
+        description:
+          type: string
+          minLength: 10
+        brand_id:
+          type: string
+          format: uuid
+        category_id:
+          type: string
+          format: uuid
+        movement_type:
+          $ref: "#/components/schemas/WatchMovement"
+        case_material:
+          type: string
+          minLength: 2
+          maxLength: 80
+        strap_material:
+          type: string
+          minLength: 2
+          maxLength: 80
+        water_resistance:
+          type: string
+          minLength: 2
+          maxLength: 50
+        dial_color:
+          type: string
+          minLength: 2
+          maxLength: 50
+        image_urls:
+          type: array
+          items:
+            type: string
+          default: []
+        price_lkr:
+          $ref: "#/components/schemas/MoneyInput"
+        status:
+          $ref: "#/components/schemas/ProductStatus"
+        low_stock_threshold:
+          type: integer
+          minimum: 0
+          default: 5
+        initial_stock:
+          type: integer
+          minimum: 0
+          default: 0
+
+    ProductUpdate:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: [string, "null"]
+          minLength: 2
+          maxLength: 200
+        model:
+          type: [string, "null"]
+          minLength: 1
+          maxLength: 100
+        description:
+          type: [string, "null"]
+          minLength: 10
+        brand_id:
+          type: [string, "null"]
+          format: uuid
+        category_id:
+          type: [string, "null"]
+          format: uuid
+        movement_type:
+          oneOf:
+            - $ref: "#/components/schemas/WatchMovement"
+            - type: "null"
+        case_material:
+          type: [string, "null"]
+          minLength: 2
+          maxLength: 80
+        strap_material:
+          type: [string, "null"]
+          minLength: 2
+          maxLength: 80
+        water_resistance:
+          type: [string, "null"]
+          minLength: 2
+          maxLength: 50
+        dial_color:
+          type: [string, "null"]
+          minLength: 2
+          maxLength: 50
+        image_urls:
+          type: [array, "null"]
+          items:
+            type: string
+        price_lkr:
+          oneOf:
+            - $ref: "#/components/schemas/MoneyInput"
+            - type: "null"
+        status:
+          oneOf:
+            - $ref: "#/components/schemas/ProductStatus"
+            - type: "null"
+        low_stock_threshold:
+          type: [integer, "null"]
+          minimum: 0
+
+    ProductResponse:
+      type: object
+      required:
+        - id
+        - sku
+        - name
+        - model
+        - description
+        - brand_id
+        - brand_name
+        - category_id
+        - category_name
+        - movement_type
+        - case_material
+        - strap_material
+        - water_resistance
+        - dial_color
+        - image_urls
+        - price_lkr
+        - currency
+        - status
+        - stock_status
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        sku:
+          type: string
+        name:
+          type: string
+        model:
+          type: string
+        description:
+          type: string
+        brand_id:
+          type: string
+          format: uuid
+        brand_name:
+          type: string
+        category_id:
+          type: string
+          format: uuid
+        category_name:
+          type: string
+        movement_type:
+          $ref: "#/components/schemas/WatchMovement"
+        case_material:
+          type: string
+        strap_material:
+          type: string
+        water_resistance:
+          type: string
+        dial_color:
+          type: string
+        image_urls:
+          type: array
+          items:
+            type: string
+        price_lkr:
+          $ref: "#/components/schemas/MoneyAmount"
+        currency:
+          type: string
+          enum: [LKR]
+        status:
+          $ref: "#/components/schemas/ProductStatus"
+        stock_status:
+          $ref: "#/components/schemas/StockStatus"
+        available_stock:
+          type: [integer, "null"]
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ProductPage:
+      type: object
+      required: [items, page, page_size, total, total_pages]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProductResponse"
+        page:
+          type: integer
+          minimum: 1
+        page_size:
+          type: integer
+          minimum: 1
+          maximum: 100
+        total:
+          type: integer
+          minimum: 0
+        total_pages:
+          type: integer
+          minimum: 0
+
+    CartItemAddRequest:
+      type: object
+      additionalProperties: false
+      required: [product_id]
+      properties:
+        product_id:
+          type: string
+          format: uuid
+        quantity:
+          type: integer
+          minimum: 1
+          maximum: 10
+          default: 1
+
+    CartItemUpdateRequest:
+      type: object
+      additionalProperties: false
+      required: [quantity]
+      properties:
+        quantity:
+          type: integer
+          minimum: 1
+          maximum: 10
+
+    CartItemResponse:
+      type: object
+      required:
+        - id
+        - product_id
+        - product_sku
+        - product_name
+        - brand_name
+        - unit_price_lkr
+        - quantity
+        - line_total_lkr
+        - is_available
+      properties:
+        id:
+          type: string
+          format: uuid
+        product_id:
+          type: string
+          format: uuid
+        product_sku:
+          type: string
+        product_name:
+          type: string
+        brand_name:
+          type: string
+        unit_price_lkr:
+          $ref: "#/components/schemas/MoneyAmount"
+        quantity:
+          type: integer
+        line_total_lkr:
+          $ref: "#/components/schemas/MoneyAmount"
+        is_available:
+          type: boolean
+        stock_warning:
+          type: [string, "null"]
+
+    CartResponse:
+      type: object
+      required:
+        - id
+        - items
+        - subtotal
+        - shipping_fee
+        - total
+        - currency
+        - item_count
+        - has_unavailable_items
+      properties:
+        id:
+          type: string
+          format: uuid
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/CartItemResponse"
+        subtotal:
+          $ref: "#/components/schemas/Money"
+        shipping_fee:
+          $ref: "#/components/schemas/Money"
+        total:
+          $ref: "#/components/schemas/Money"
+        currency:
+          type: string
+          enum: [LKR]
+        item_count:
+          type: integer
+        has_unavailable_items:
+          type: boolean
+
+    CheckoutRequest:
+      type: object
+      additionalProperties: false
+      required: [shipping_address_id]
+      properties:
+        shipping_address_id:
+          type: string
+          format: uuid
+        customer_notes:
+          type: [string, "null"]
+          maxLength: 500
+
+    OrderItemResponse:
+      type: object
+      required:
+        - id
+        - product_id
+        - product_sku
+        - product_name
+        - brand_name
+        - unit_price_lkr
+        - quantity
+        - line_total_lkr
+      properties:
+        id:
+          type: string
+          format: uuid
+        product_id:
+          type: [string, "null"]
+          format: uuid
+        product_sku:
+          type: string
+        product_name:
+          type: string
+        brand_name:
+          type: string
+        unit_price_lkr:
+          $ref: "#/components/schemas/MoneyAmount"
+        quantity:
+          type: integer
+        line_total_lkr:
+          $ref: "#/components/schemas/MoneyAmount"
+
+    PaymentResponse:
+      type: object
+      required:
+        - id
+        - order_id
+        - method
+        - status
+        - amount_lkr
+        - currency
+        - collected_at
+        - collection_reference
+        - notes
+      properties:
+        id:
+          type: string
+          format: uuid
+        order_id:
+          type: string
+          format: uuid
+        method:
+          $ref: "#/components/schemas/PaymentMethod"
+        status:
+          $ref: "#/components/schemas/PaymentStatus"
+        amount_lkr:
+          $ref: "#/components/schemas/MoneyAmount"
+        currency:
+          type: string
+          enum: [LKR]
+        collected_at:
+          type: [string, "null"]
+          format: date-time
+        collection_reference:
+          type: [string, "null"]
+        notes:
+          type: [string, "null"]
+
+    OrderResponse:
+      type: object
+      required:
+        - id
+        - order_number
+        - status
+        - subtotal_lkr
+        - shipping_fee_lkr
+        - total_lkr
+        - currency
+        - shipping_address_snapshot
+        - customer_notes
+        - cancellation_reason
+        - cancelled_at
+        - confirmed_at
+        - items
+        - payment
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        order_number:
+          type: string
+        status:
+          $ref: "#/components/schemas/OrderStatus"
+        subtotal_lkr:
+          $ref: "#/components/schemas/MoneyAmount"
+        shipping_fee_lkr:
+          $ref: "#/components/schemas/MoneyAmount"
+        total_lkr:
+          $ref: "#/components/schemas/MoneyAmount"
+        currency:
+          type: string
+          enum: [LKR]
+        shipping_address_snapshot:
+          type: object
+        customer_notes:
+          type: [string, "null"]
+        cancellation_reason:
+          type: [string, "null"]
+        cancelled_at:
+          type: [string, "null"]
+          format: date-time
+        confirmed_at:
+          type: [string, "null"]
+          format: date-time
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrderItemResponse"
+        payment:
+          oneOf:
+            - $ref: "#/components/schemas/PaymentResponse"
+            - type: "null"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    OrderCancelRequest:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      properties:
+        reason:
+          type: string
+          minLength: 3
+          maxLength: 255
+
+    PaymentCollectRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        collection_reference:
+          type: [string, "null"]
+          maxLength: 100
+        notes:
+          type: [string, "null"]
+          maxLength: 255
+
+    InventoryAdjustmentRequest:
+      type: object
+      additionalProperties: false
+      required: [product_id, quantity_delta, reason]
+      properties:
+        product_id:
+          type: string
+          format: uuid
+        quantity_delta:
+          type: integer
+        reason:
+          $ref: "#/components/schemas/AdjustmentReason"
+        notes:
+          type: [string, "null"]
+          maxLength: 255
+
+    InventoryItemResponse:
+      type: object
+      required:
+        - id
+        - product_id
+        - product_sku
+        - product_name
+        - brand_name
+        - on_hand
+        - reserved
+        - available
+        - low_stock_threshold
+        - stock_status
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        product_id:
+          type: string
+          format: uuid
+        product_sku:
+          type: string
+        product_name:
+          type: string
+        brand_name:
+          type: string
+        on_hand:
+          type: integer
+        reserved:
+          type: integer
+        available:
+          type: integer
+        low_stock_threshold:
+          type: integer
+        stock_status:
+          $ref: "#/components/schemas/StockStatus"
+        updated_at:
+          type: string
+          format: date-time
+
+    InventoryMovementResponse:
+      type: object
+      required:
+        - id
+        - product_id
+        - product_sku
+        - product_name
+        - movement_type
+        - quantity_delta
+        - reserved_delta
+        - on_hand_after
+        - reserved_after
+        - reason
+        - notes
+        - reference_id
+        - actor_id
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        product_id:
+          type: string
+          format: uuid
+        product_sku:
+          type: string
+        product_name:
+          type: string
+        movement_type:
+          $ref: "#/components/schemas/InventoryMovementType"
+        quantity_delta:
+          type: integer
+        reserved_delta:
+          type: integer
+        on_hand_after:
+          type: integer
+        reserved_after:
+          type: integer
+        reason:
+          oneOf:
+            - $ref: "#/components/schemas/AdjustmentReason"
+            - type: "null"
+        notes:
+          type: [string, "null"]
+        reference_id:
+          type: [string, "null"]
+          format: uuid
+        actor_id:
+          type: [string, "null"]
+          format: uuid
+        created_at:
+          type: string
+          format: date-time
+
+    ShipmentCreateRequest:
+      type: object
+      additionalProperties: false
+      required: [tracking_number]
+      properties:
+        tracking_number:
+          type: string
+          minLength: 3
+          maxLength: 64
+        carrier:
+          type: string
+          minLength: 2
+          maxLength: 100
+          default: Certis Lanka
+        notes:
+          type: [string, "null"]
+          maxLength: 255
+
+    ShipmentStatusUpdateRequest:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status:
+          $ref: "#/components/schemas/ShipmentStatus"
+        notes:
+          type: [string, "null"]
+          maxLength: 255
+
+    ShipmentStatusHistoryResponse:
+      type: object
+      required: [from_status, to_status, notes, created_at]
+      properties:
+        from_status:
+          oneOf:
+            - $ref: "#/components/schemas/ShipmentStatus"
+            - type: "null"
+        to_status:
+          $ref: "#/components/schemas/ShipmentStatus"
+        notes:
+          type: [string, "null"]
+        created_at:
+          type: string
+          format: date-time
+
+    ShipmentResponse:
+      type: object
+      required:
+        - id
+        - order_id
+        - tracking_number
+        - carrier
+        - status
+        - dispatched_at
+        - delivered_at
+        - notes
+        - status_history
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        order_id:
+          type: string
+          format: uuid
+        tracking_number:
+          type: string
+        carrier:
+          type: string
+        status:
+          $ref: "#/components/schemas/ShipmentStatus"
+        dispatched_at:
+          type: [string, "null"]
+          format: date-time
+        delivered_at:
+          type: [string, "null"]
+          format: date-time
+        notes:
+          type: [string, "null"]
+        status_history:
+          type: array
+          items:
+            $ref: "#/components/schemas/ShipmentStatusHistoryResponse"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ReturnItemRequest:
+      type: object
+      additionalProperties: false
+      required: [order_item_id, quantity]
+      properties:
+        order_item_id:
+          type: string
+          format: uuid
+        quantity:
+          type: integer
+          minimum: 1
+
+    ReturnRequestCreate:
+      type: object
+      additionalProperties: false
+      required: [reason, customer_notes, items]
+      properties:
+        reason:
+          $ref: "#/components/schemas/ReturnReason"
+        customer_notes:
+          type: string
+          minLength: 5
+        items:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/ReturnItemRequest"
+
+    ReturnReviewRequest:
+      type: object
+      additionalProperties: false
+      required: [approved]
+      properties:
+        approved:
+          type: boolean
+        admin_notes:
+          type: [string, "null"]
+          maxLength: 500
+
+    ReturnInspectRequest:
+      type: object
+      additionalProperties: false
+      required: [outcome]
+      properties:
+        outcome:
+          $ref: "#/components/schemas/InspectionOutcome"
+        notes:
+          type: [string, "null"]
+          maxLength: 500
+        restock_resellable:
+          type: boolean
+          default: true
+
+    ReturnRefundRequest:
+      type: object
+      additionalProperties: false
+      required: [refund_amount_lkr, refund_reference]
+      properties:
+        refund_amount_lkr:
+          $ref: "#/components/schemas/MoneyInput"
+        refund_method:
+          $ref: "#/components/schemas/RefundMethod"
+        refund_reference:
+          type: string
+          minLength: 3
+          maxLength: 100
+
+    ReturnItemResponse:
+      type: object
+      required: [id, order_item_id, quantity]
+      properties:
+        id:
+          type: string
+          format: uuid
+        order_item_id:
+          type: string
+          format: uuid
+        quantity:
+          type: integer
+
+    ReturnResponse:
+      type: object
+      required:
+        - id
+        - order_id
+        - status
+        - reason
+        - customer_notes
+        - admin_notes
+        - inspection_outcome
+        - inspection_notes
+        - inspected_at
+        - restocked
+        - restocked_at
+        - refund_amount_lkr
+        - refund_method
+        - refund_reference
+        - refunded_at
+        - items
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        order_id:
+          type: string
+          format: uuid
+        status:
+          $ref: "#/components/schemas/ReturnStatus"
+        reason:
+          $ref: "#/components/schemas/ReturnReason"
+        customer_notes:
+          type: string
+        admin_notes:
+          type: [string, "null"]
+        inspection_outcome:
+          oneOf:
+            - $ref: "#/components/schemas/InspectionOutcome"
+            - type: "null"
+        inspection_notes:
+          type: [string, "null"]
+        inspected_at:
+          type: [string, "null"]
+          format: date-time
+        restocked:
+          type: boolean
+        restocked_at:
+          type: [string, "null"]
+          format: date-time
+        refund_amount_lkr:
+          oneOf:
+            - $ref: "#/components/schemas/MoneyAmount"
+            - type: "null"
+        refund_method:
+          oneOf:
+            - $ref: "#/components/schemas/RefundMethod"
+            - type: "null"
+        refund_reference:
+          type: [string, "null"]
+        refunded_at:
+          type: [string, "null"]
+          format: date-time
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReturnItemResponse"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    SalesReportItem:
+      type: object
+      required:
+        - date
+        - order_count
+        - gross_sales_lkr
+        - shipping_collected_lkr
+        - net_sales_lkr
+      properties:
+        date:
+          type: string
+          format: date
+        order_count:
+          type: integer
+        gross_sales_lkr:
+          $ref: "#/components/schemas/MoneyAmount"
+        shipping_collected_lkr:
+          $ref: "#/components/schemas/MoneyAmount"
+        net_sales_lkr:
+          $ref: "#/components/schemas/MoneyAmount"
+
+    SalesReportResponse:
+      type: object
+      required:
+        - start_date
+        - end_date
+        - total_orders
+        - total_revenue_lkr
+        - currency
+        - daily_breakdown
+      properties:
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+        total_orders:
+          type: integer
+        total_revenue_lkr:
+          $ref: "#/components/schemas/MoneyAmount"
+        currency:
+          type: string
+          enum: [LKR]
+        daily_breakdown:
+          type: array
+          items:
+            $ref: "#/components/schemas/SalesReportItem"
+
+    OrdersByStatusReport:
+      type: object
+      required: [status, count, total_amount_lkr]
+      properties:
+        status:
+          $ref: "#/components/schemas/OrderStatus"
+        count:
+          type: integer
+        total_amount_lkr:
+          $ref: "#/components/schemas/MoneyAmount"
+
+    BestSellingWatch:
+      type: object
+      required: [product_id, sku, product_name, brand_name, units_sold, revenue_lkr]
+      properties:
+        product_id:
+          type: [string, "null"]
+          format: uuid
+        sku:
+          type: string
+        product_name:
+          type: string
+        brand_name:
+          type: string
+        units_sold:
+          type: integer
+        revenue_lkr:
+          $ref: "#/components/schemas/MoneyAmount"
+
+    LowStockProductReport:
+      type: object
+      required:
+        - product_id
+        - sku
+        - name
+        - brand_name
+        - on_hand
+        - reserved
+        - available
+        - threshold
+        - stock_status
+      properties:
+        product_id:
+          type: string
+          format: uuid
+        sku:
+          type: string
+        name:
+          type: string
+        brand_name:
+          type: string
+        on_hand:
+          type: integer
+        reserved:
+          type: integer
+        available:
+          type: integer
+        threshold:
+          type: integer
+        stock_status:
+          $ref: "#/components/schemas/StockStatus"
+
+    AuditLogResponse:
+      type: object
+      required: [id, actor_id, action, resource_type, resource_id, changes, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        actor_id:
+          type: [string, "null"]
+          format: uuid
+        action:
+          type: string
+        resource_type:
+          type: string
+        resource_id:
+          type: string
+          format: uuid
+        changes:
+          type: [object, "null"]
+        created_at:
+          type: string
+          format: date-time
+

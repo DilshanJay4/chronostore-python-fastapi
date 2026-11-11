@@ -1,0 +1,50 @@
+{
+  "id": "99999999-aaaa-bbbb-cccc-dddddddddddd",
+  "order_number": "CS-202611-A1B2C3",
+  "status": "placed",
+  "subtotal_lkr": "165000.00",
+  "shipping_fee_lkr": "0.00",
+  "total_lkr": "165000.00",
+  "currency": "LKR",
+  "shipping_address_snapshot": {
+    "label": "Home",
+    "recipient_name": "Kasun Perera",
+    "phone": "0771234567",
+    "street_line1": "42 Horton Place",
+    "street_line2": "Colombo 07",
+    "city": "Colombo",
+    "postal_code": "00700",
+    "province": "Western",
+    "country_code": "LK"
+  },
+  "customer_notes": "Please call before arriving.",
+  "cancellation_reason": null,
+  "cancelled_at": null,
+  "confirmed_at": null,
+  "items": [
+    {
+      "id": "eeee0001-aaaa-bbbb-cccc-dddddddddddd",
+      "product_id": "5f9a8d10-12a4-4f99-b112-998877665544",
+      "product_sku": "SEIKO-PROSPEX-SRPE93",
+      "product_name": "Seiko Prospex Automatic Diver 200m Turtle",
+      "brand_name": "Seiko",
+      "unit_price_lkr": "165000.00",
+      "quantity": 1,
+      "line_total_lkr": "165000.00"
+    }
+  ],
+  "payment": {
+    "id": "ffff0001-aaaa-bbbb-cccc-dddddddddddd",
+    "order_id": "99999999-aaaa-bbbb-cccc-dddddddddddd",
+    "method": "cash_on_delivery",
+    "status": "pending",
+    "amount_lkr": "165000.00",
+    "currency": "LKR",
+    "collected_at": null,
+    "collection_reference": null,
+    "notes": null
+  },
+  "created_at": "2026-11-11T08:15:00Z",
+  "updated_at": "2026-11-11T08:15:00Z"
+}
+

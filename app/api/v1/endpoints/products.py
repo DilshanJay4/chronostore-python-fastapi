@@ -13,8 +13,10 @@ from app.api.openapi import (
     responses,
 )
 from app.core.config import Settings, get_settings
+from app.core.exceptions import AuthenticationError
+from app.core.security import decode_access_token
 from app.db.session import get_db
-from app.dependencies.auth import require_admin
+from app.dependencies.auth import oauth2_scheme, require_admin
 from app.domain.enums import ProductStatus, UserRole, WatchMovement
 from app.models.entities import User
 from app.schemas.catalog import (
@@ -29,8 +31,14 @@ from app.services.catalog import CatalogService
 router = APIRouter(prefix="/products", tags=["Products"])
 
 
-def _check_admin(payload: dict | None) -> bool:
-    return bool(payload and payload.get("role") == UserRole.ADMIN.value)
+def _resolve_is_admin(token: str | None, settings: Settings) -> bool:
+    if not token:
+        return False
+    try:
+        payload = decode_access_token(token, settings)
+        return bool(payload.get("role") == UserRole.ADMIN.value)
+    except AuthenticationError:
+        return False
 
 
 @router.get("", response_model=Page[ProductResponse], summary="List and filter wristwatch products")
@@ -48,6 +56,7 @@ def list_products(
         default="created_at",
         pattern=r"^(created_at|price_asc|price_desc|name_asc|name_desc)$",
     ),
+    token: str | None = Depends(oauth2_scheme),
     session: Session = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> Page[ProductResponse]:
@@ -63,8 +72,9 @@ def list_products(
         status=status,
         sort_by=sort_by,
     )
+    is_admin = _resolve_is_admin(token, settings)
     service = CatalogService(session, settings)
-    return service.list_products(params, is_admin=False)
+    return service.list_products(params, is_admin=is_admin)
 
 
 @router.get(
@@ -75,12 +85,14 @@ def list_products(
 )
 def get_product(
     product_id: uuid.UUID,
+    token: str | None = Depends(oauth2_scheme),
     session: Session = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> ProductResponse:
+    is_admin = _resolve_is_admin(token, settings)
     service = CatalogService(session, settings)
-    product = service.get_product_by_id(product_id, is_admin=False)
-    return service.to_response(product, is_admin=False)
+    product = service.get_product_by_id(product_id, is_admin=is_admin)
+    return service.to_response(product, is_admin=is_admin)
 
 
 @router.post(

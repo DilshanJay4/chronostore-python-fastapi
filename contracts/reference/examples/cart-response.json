@@ -1,0 +1,33 @@
+{
+  "id": "77777777-8888-9999-aaaa-bbbbbbbbbbbb",
+  "items": [
+    {
+      "id": "cccccccc-dddd-eeee-ffff-000000000001",
+      "product_id": "5f9a8d10-12a4-4f99-b112-998877665544",
+      "product_sku": "SEIKO-PROSPEX-SRPE93",
+      "product_name": "Seiko Prospex Automatic Diver 200m Turtle",
+      "brand_name": "Seiko",
+      "unit_price_lkr": "165000.00",
+      "quantity": 1,
+      "line_total_lkr": "165000.00",
+      "is_available": true,
+      "stock_warning": null
+    }
+  ],
+  "subtotal": {
+    "amount": "165000.00",
+    "currency": "LKR"
+  },
+  "shipping_fee": {
+    "amount": "0.00",
+    "currency": "LKR"
+  },
+  "total": {
+    "amount": "165000.00",
+    "currency": "LKR"
+  },
+  "currency": "LKR",
+  "item_count": 1,
+  "has_unavailable_items": false
+}
+

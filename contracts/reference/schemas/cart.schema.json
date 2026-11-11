@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chronostore.lk/schemas/v1/cart.schema.json",
+  "title": "ChronoStore Shopping Cart Schema",
+  "type": "object",
+  "required": [
+    "id",
+    "items",
+    "subtotal",
+    "shipping_fee",
+    "total",
+    "currency",
+    "item_count",
+    "has_unavailable_items"
+  ],
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "product_id",
+          "product_sku",
+          "product_name",
+          "brand_name",
+          "unit_price_lkr",
+          "quantity",
+          "line_total_lkr",
+          "is_available"
+        ],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "product_id": { "type": "string", "format": "uuid" },
+          "product_sku": { "type": "string" },
+          "product_name": { "type": "string" },
+          "brand_name": { "type": "string" },
+          "unit_price_lkr": { "type": "string", "pattern": "^\\d+\\.\\d{2}$" },
+          "quantity": { "type": "integer", "minimum": 1, "maximum": 10 },
+          "line_total_lkr": { "type": "string", "pattern": "^\\d+\\.\\d{2}$" },
+          "is_available": { "type": "boolean" },
+          "stock_warning": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "subtotal": {
+      "type": "object",
+      "required": ["amount", "currency"],
+      "properties": {
+        "amount": { "type": "string", "pattern": "^\\d+\\.\\d{2}$" },
+        "currency": { "type": "string", "const": "LKR" }
+      }
+    },
+    "shipping_fee": {
+      "type": "object",
+      "required": ["amount", "currency"],
+      "properties": {
+        "amount": { "type": "string", "pattern": "^\\d+\\.\\d{2}$" },
+        "currency": { "type": "string", "const": "LKR" }
+      }
+    },
+    "total": {
+      "type": "object",
+      "required": ["amount", "currency"],
+      "properties": {
+        "amount": { "type": "string", "pattern": "^\\d+\\.\\d{2}$" },
+        "currency": { "type": "string", "const": "LKR" }
+      }
+    },
+    "currency": { "type": "string", "const": "LKR" },
+    "item_count": { "type": "integer", "minimum": 0 },
+    "has_unavailable_items": { "type": "boolean" }
+  }
+}
+

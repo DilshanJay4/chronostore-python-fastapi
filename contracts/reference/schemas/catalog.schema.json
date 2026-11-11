@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chronostore.lk/schemas/v1/catalog.schema.json",
+  "title": "ChronoStore Catalog Schemas",
+  "$defs": {
+    "BrandResponse": {
+      "type": "object",
+      "required": ["id", "name", "slug", "description", "website_url", "is_active", "created_at", "updated_at"],
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "name": { "type": "string" },
+        "slug": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+        "description": { "type": ["string", "null"] },
+        "website_url": { "type": ["string", "null"] },
+        "is_active": { "type": "boolean" },
+        "created_at": { "type": "string", "format": "date-time" },
+        "updated_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "CategoryResponse": {
+      "type": "object",
+      "required": ["id", "name", "slug", "description", "is_active", "created_at", "updated_at"],
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "name": { "type": "string" },
+        "slug": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+        "description": { "type": ["string", "null"] },
+        "is_active": { "type": "boolean" },
+        "created_at": { "type": "string", "format": "date-time" },
+        "updated_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "ProductResponse": {
+      "type": "object",
+      "required": [
+        "id",
+        "sku",
+        "name",
+        "model",
+        "description",
+        "brand_id",
+        "brand_name",
+        "category_id",
+        "category_name",
+        "movement_type",
+        "case_material",
+        "strap_material",
+        "water_resistance",
+        "dial_color",
+        "image_urls",
+        "price_lkr",
+        "currency",
+        "status",
+        "stock_status",
+        "created_at",
+        "updated_at"
+      ],
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "sku": { "type": "string" },
+        "name": { "type": "string" },
+        "model": { "type": "string" },
+        "description": { "type": "string" },
+        "brand_id": { "type": "string", "format": "uuid" },
+        "brand_name": { "type": "string" },
+        "category_id": { "type": "string", "format": "uuid" },
+        "category_name": { "type": "string" },
+        "movement_type": { "type": "string", "enum": ["quartz", "automatic", "manual"] },
+        "case_material": { "type": "string" },
+        "strap_material": { "type": "string" },
+        "water_resistance": { "type": "string" },
+        "dial_color": { "type": "string" },
+        "image_urls": { "type": "array", "items": { "type": "string" } },
+        "price_lkr": { "type": "string", "pattern": "^\\d+\\.\\d{2}$" },
+        "currency": { "type": "string", "const": "LKR" },
+        "status": { "type": "string", "enum": ["draft", "published", "discontinued"] },
+        "stock_status": { "type": "string", "enum": ["in_stock", "low_stock", "out_of_stock"] },
+        "available_stock": { "type": ["integer", "null"] },
+        "created_at": { "type": "string", "format": "date-time" },
+        "updated_at": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}
+

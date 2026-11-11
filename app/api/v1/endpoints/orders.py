@@ -13,8 +13,10 @@ from app.api.openapi import (
     responses,
 )
 from app.core.config import Settings, get_settings
+from app.core.exceptions import NotFoundError
 from app.db.session import get_db
 from app.dependencies.auth import get_current_user, require_admin
+from app.domain.enums import UserRole
 from app.models.entities import User
 from app.schemas.orders import (
     CheckoutRequest,
@@ -83,7 +85,8 @@ def get_order(
     settings: Settings = Depends(get_settings),
 ) -> OrderResponse:
     service = OrderService(session, settings)
-    return service.get_order_by_id(order_id, user_id=current_user.id, is_admin=False)
+    is_admin = current_user.role == UserRole.ADMIN
+    return service.get_order_by_id(order_id, user_id=current_user.id, is_admin=is_admin)
 
 
 @orders_router.post(
@@ -100,7 +103,8 @@ def cancel_my_order(
     settings: Settings = Depends(get_settings),
 ) -> OrderResponse:
     service = OrderService(session, settings)
-    return service.cancel_order(order_id, user=current_user, data=data, is_admin=False)
+    is_admin = current_user.role == UserRole.ADMIN
+    return service.cancel_order(order_id, user=current_user, data=data, is_admin=is_admin)
 
 
 @orders_router.get(
@@ -116,9 +120,10 @@ def get_order_payment(
     settings: Settings = Depends(get_settings),
 ) -> PaymentResponse:
     service = OrderService(session, settings)
-    order = service.get_order_by_id(order_id, user_id=current_user.id, is_admin=False)
+    is_admin = current_user.role == UserRole.ADMIN
+    order = service.get_order_by_id(order_id, user_id=current_user.id, is_admin=is_admin)
     if not order.payment:
-        raise NOT_FOUND_RESPONSE
+        raise NotFoundError("Payment record not found.")
     return order.payment
 
 

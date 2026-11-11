@@ -10,6 +10,7 @@ x-api-env: &api-env
   LOG_JSON: "true"
   CORS_ORIGINS: ${CORS_ORIGINS:-}
   DOCS_ENABLED: ${DOCS_ENABLED:-true}
+  AUTH_RATE_LIMIT_ATTEMPTS: ${AUTH_RATE_LIMIT_ATTEMPTS:-100}
 
 services:
   db:

@@ -1,0 +1,27 @@
+{
+  "id": "5f9a8d10-12a4-4f99-b112-998877665544",
+  "sku": "SEIKO-PROSPEX-SRPE93",
+  "name": "Seiko Prospex Automatic Diver 200m Turtle",
+  "model": "SRPE93",
+  "description": "Iconic cushion-case 200m ISO-certified automatic diver watch powered by caliber 4R36.",
+  "brand_id": "11111111-2222-3333-4444-555555555555",
+  "brand_name": "Seiko",
+  "category_id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+  "category_name": "Dive Watches",
+  "movement_type": "automatic",
+  "case_material": "Stainless Steel",
+  "strap_material": "Silicone",
+  "water_resistance": "200m",
+  "dial_color": "Matte Black",
+  "image_urls": [
+    "https://cdn.chronostore.lk/watches/seiko-srpe93-front.jpg"
+  ],
+  "price_lkr": "165000.00",
+  "currency": "LKR",
+  "status": "published",
+  "stock_status": "in_stock",
+  "available_stock": null,
+  "created_at": "2026-11-11T08:00:00Z",
+  "updated_at": "2026-11-11T08:00:00Z"
+}
+

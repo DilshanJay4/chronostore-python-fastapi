@@ -49,7 +49,6 @@ OPENAPI_TAGS: list[dict[str, Any]] = [
     {"name": "Admin: Returns", "description": "Return review, receipt, inspection, refund."},
     {"name": "Admin: Inventory", "description": "Stock levels, adjustments and movements."},
     {"name": "Admin: Reports", "description": "Sales, order and inventory reporting."},
-    {"name": "Admin: Users", "description": "User administration and role management."},
     {"name": "Admin: Audit", "description": "Audit trail of sensitive operations."},
     {"name": "Health", "description": "Liveness and readiness probes."},
 ]

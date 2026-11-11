@@ -25,7 +25,6 @@ class InventoryService:
     def adjust_stock(self, data: InventoryAdjustmentRequest, actor: User) -> InventoryItemResponse:
         item = self.session.execute(
             select(InventoryItem)
-            .options(joinedload(InventoryItem.product).joinedload(Product.brand))
             .where(InventoryItem.product_id == data.product_id)
             .with_for_update()
         ).scalar_one_or_none()
@@ -73,7 +72,12 @@ class InventoryService:
         self.session.add(audit)
 
         self.session.commit()
-        return self._to_response(item)
+        refreshed = self.session.execute(
+            select(InventoryItem)
+            .options(joinedload(InventoryItem.product).joinedload(Product.brand))
+            .where(InventoryItem.id == item.id)
+        ).scalar_one()
+        return self._to_response(refreshed)
 
     def list_inventory(self) -> list[InventoryItemResponse]:
         items = list(
@@ -90,11 +94,7 @@ class InventoryService:
     def list_movements(
         self, product_id: uuid.UUID | None = None
     ) -> list[InventoryMovementResponse]:
-        stmt = (
-            select(InventoryMovement)
-            .options(joinedload(InventoryMovement.product_id))  # simple join
-            .order_by(InventoryMovement.created_at.desc())
-        )
+        stmt = select(InventoryMovement).order_by(InventoryMovement.created_at.desc())
         if product_id:
             stmt = stmt.where(InventoryMovement.product_id == product_id)
 

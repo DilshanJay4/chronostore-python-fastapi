@@ -1,0 +1,61 @@
+{
+  "shipment": {
+    "id": "12345678-1234-4321-8888-111122223333",
+    "order_id": "99999999-aaaa-bbbb-cccc-dddddddddddd",
+    "tracking_number": "CERTIS-LK-778899",
+    "carrier": "Certis Lanka",
+    "status": "delivered",
+    "dispatched_at": "2026-11-11T09:00:00Z",
+    "delivered_at": "2026-11-11T14:30:00Z",
+    "notes": "Handed over to recipient",
+    "status_history": [
+      {
+        "from_status": null,
+        "to_status": "pending",
+        "notes": "Shipment created",
+        "created_at": "2026-11-11T08:30:00Z"
+      },
+      {
+        "from_status": "pending",
+        "to_status": "dispatched",
+        "notes": "Dispatched from Colombo hub",
+        "created_at": "2026-11-11T09:00:00Z"
+      },
+      {
+        "from_status": "dispatched",
+        "to_status": "delivered",
+        "notes": "Delivered to recipient",
+        "created_at": "2026-11-11T14:30:00Z"
+      }
+    ],
+    "created_at": "2026-11-11T08:30:00Z",
+    "updated_at": "2026-11-11T14:30:00Z"
+  },
+  "return_request": {
+    "id": "87654321-4321-4321-8888-333322221111",
+    "order_id": "99999999-aaaa-bbbb-cccc-dddddddddddd",
+    "status": "refunded",
+    "reason": "defective",
+    "customer_notes": "Crown thread does not lock smoothly.",
+    "admin_notes": "Approved for workshop inspection.",
+    "inspection_outcome": "resellable",
+    "inspection_notes": "Crown seal lubricated and pressure-tested to 200m.",
+    "inspected_at": "2026-11-12T10:00:00Z",
+    "restocked": true,
+    "restocked_at": "2026-11-12T10:00:00Z",
+    "refund_amount_lkr": "165000.00",
+    "refund_method": "bank_transfer",
+    "refund_reference": "SAMPATH-TXN-889900",
+    "refunded_at": "2026-11-12T11:00:00Z",
+    "items": [
+      {
+        "id": "abcd0001-1234-4321-8888-111122223333",
+        "order_item_id": "eeee0001-aaaa-bbbb-cccc-dddddddddddd",
+        "quantity": 1
+      }
+    ],
+    "created_at": "2026-11-11T16:00:00Z",
+    "updated_at": "2026-11-12T11:00:00Z"
+  }
+}
+

@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chronostore.lk/schemas/v1/reports-and-audit.schema.json",
+  "title": "ChronoStore Reports & Audit Schemas",
+  "$defs": {
+    "SalesReportResponse": {
+      "type": "object",
+      "required": ["start_date", "end_date", "total_orders", "total_revenue_lkr", "currency", "daily_breakdown"],
+      "properties": {
+        "start_date": { "type": "string", "format": "date" },
+        "end_date": { "type": "string", "format": "date" },
+        "total_orders": { "type": "integer", "minimum": 0 },
+        "total_revenue_lkr": { "type": "string", "pattern": "^\\d+\\.\\d{2}$" },
+        "currency": { "type": "string", "const": "LKR" },
+        "daily_breakdown": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["date", "order_count", "gross_sales_lkr", "shipping_collected_lkr", "net_sales_lkr"],
+            "properties": {
+              "date": { "type": "string", "format": "date" },
+              "order_count": { "type": "integer", "minimum": 0 },
+              "gross_sales_lkr": { "type": "string", "pattern": "^\\d+\\.\\d{2}$" },
+              "shipping_collected_lkr": { "type": "string", "pattern": "^\\d+\\.\\d{2}$" },
+              "net_sales_lkr": { "type": "string", "pattern": "^\\d+\\.\\d{2}$" }
+            }
+          }
+        }
+      }
+    },
+    "AuditLogResponse": {
+      "type": "object",
+      "required": ["id", "actor_id", "action", "resource_type", "resource_id", "changes", "created_at"],
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "actor_id": { "type": ["string", "null"], "format": "uuid" },
+        "action": { "type": "string" },
+        "resource_type": { "type": "string" },
+        "resource_id": { "type": "string", "format": "uuid" },
+        "changes": { "type": ["object", "null"] },
+        "created_at": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}
+

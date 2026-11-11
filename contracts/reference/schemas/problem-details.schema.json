@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chronostore.lk/schemas/v1/problem-details.schema.json",
+  "title": "ChronoStore RFC 9457 Problem Details Schema",
+  "type": "object",
+  "required": ["type", "title", "status", "detail", "code"],
+  "properties": {
+    "type": {
+      "type": "string",
+      "pattern": "^urn:chronostore:problem:[a-z0-9\\-]+$"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "integer",
+      "minimum": 400,
+      "maximum": 599
+    },
+    "detail": {
+      "type": "string",
+      "minLength": 1
+    },
+    "instance": {
+      "type": ["string", "null"]
+    },
+    "code": {
+      "type": "string",
+      "pattern": "^[A-Z0-9_]+$"
+    },
+    "request_id": {
+      "type": ["string", "null"]
+    },
+    "errors": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "object",
+        "required": ["loc", "msg", "type"],
+        "properties": {
+          "loc": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "msg": { "type": "string" },
+          "type": { "type": "string" }
+        }
+      }
+    }
+  }
+}
+

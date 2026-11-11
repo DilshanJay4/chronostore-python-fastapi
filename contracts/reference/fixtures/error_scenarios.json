@@ -1,0 +1,39 @@
+{
+  "invalid_registrations": [
+    {
+      "description": "Short password (< 8 characters)",
+      "payload": {
+        "email": "shortpass@example.lk",
+        "password": "short",
+        "full_name": "Invalid User"
+      },
+      "expected_status": 422,
+      "expected_code": "VALIDATION_ERROR"
+    },
+    {
+      "description": "Malformed email address",
+      "payload": {
+        "email": "not-an-email",
+        "password": "ValidPassword123!",
+        "full_name": "Invalid Email User"
+      },
+      "expected_status": 422,
+      "expected_code": "VALIDATION_ERROR"
+    }
+  ],
+  "invalid_cart_quantities": [
+    {
+      "description": "Quantity zero is rejected",
+      "quantity": 0,
+      "expected_status": 422,
+      "expected_code": "VALIDATION_ERROR"
+    },
+    {
+      "description": "Quantity above 10 per line item is rejected",
+      "quantity": 11,
+      "expected_status": 422,
+      "expected_code": "VALIDATION_ERROR"
+    }
+  ]
+}
+

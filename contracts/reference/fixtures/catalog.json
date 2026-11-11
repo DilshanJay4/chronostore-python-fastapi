@@ -1,0 +1,84 @@
+{
+  "brands": [
+    {
+      "name": "Seiko",
+      "slug": "seiko",
+      "description": "Japanese horological craftsmanship since 1881.",
+      "website_url": "https://www.seikowatches.com",
+      "is_active": true
+    },
+    {
+      "name": "Casio",
+      "slug": "casio",
+      "description": "Precision quartz, G-Shock, and Edifice timepieces.",
+      "website_url": "https://www.casio.com",
+      "is_active": true
+    },
+    {
+      "name": "Tissot",
+      "slug": "tissot",
+      "description": "Swiss Made luxury and heritage timepieces since 1853.",
+      "website_url": "https://www.tissotwatches.com",
+      "is_active": true
+    }
+  ],
+  "categories": [
+    {
+      "name": "Dive Watches",
+      "slug": "dive-watches",
+      "description": "High water-resistance watches engineered for underwater exploration.",
+      "is_active": true
+    },
+    {
+      "name": "Dress Watches",
+      "slug": "dress-watches",
+      "description": "Sleek, refined timepieces for formal wear.",
+      "is_active": true
+    },
+    {
+      "name": "Chronographs",
+      "slug": "chronographs",
+      "description": "Precision stopwatch-equipped sport watches.",
+      "is_active": true
+    }
+  ],
+  "products": [
+    {
+      "sku": "SEIKO-SRPD55K1",
+      "name": "Seiko 5 Sports Automatic SRPD55K1",
+      "model": "SRPD55K1",
+      "description": "Automatic mechanical watch with day-date complication, unidirectional rotating bezel, and 100m water resistance.",
+      "brand_slug": "seiko",
+      "category_slug": "dive-watches",
+      "movement_type": "automatic",
+      "case_material": "Stainless Steel",
+      "strap_material": "Stainless Steel",
+      "water_resistance": "100m",
+      "dial_color": "Black",
+      "image_urls": ["https://cdn.chronostore.lk/watches/srpd55k1.jpg"],
+      "price_lkr": "115000.00",
+      "status": "published",
+      "low_stock_threshold": 5,
+      "initial_stock": 12
+    },
+    {
+      "sku": "CASIO-MTP-1302PD",
+      "name": "Casio Enticer Tiffany Blue Dial",
+      "model": "MTP-1302PD-2A2V",
+      "description": "Classic fluted-bezel date watch with turquoise dial and stainless steel bracelet.",
+      "brand_slug": "casio",
+      "category_slug": "dress-watches",
+      "movement_type": "quartz",
+      "case_material": "Brass / Ion Plated",
+      "strap_material": "Stainless Steel",
+      "water_resistance": "50m",
+      "dial_color": "Turquoise",
+      "image_urls": ["https://cdn.chronostore.lk/watches/mtp-1302pd.jpg"],
+      "price_lkr": "24500.00",
+      "status": "published",
+      "low_stock_threshold": 5,
+      "initial_stock": 20
+    }
+  ]
+}
+
