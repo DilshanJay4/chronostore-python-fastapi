@@ -1,0 +1,37 @@
+target-version = "py314"
+line-length = 100
+extend-exclude = ["app/db/migrations/versions"]
+
+[lint]
+select = [
+    "E", "W",   # pycodestyle
+    "F",        # pyflakes
+    "I",        # isort
+    "B",        # bugbear
+    "UP",       # pyupgrade
+    "S",        # bandit (security)
+    "SIM",      # simplify
+    "C4",       # comprehensions
+    "DTZ",      # timezone-aware datetimes
+    "RUF",      # ruff-specific
+    "PT",       # pytest style
+    "N",        # naming
+    "C90",      # complexity
+    "BLE",      # blind except
+]
+ignore = [
+    "B008",   # FastAPI dependency injection uses calls in defaults
+]
+
+[lint.mccabe]
+max-complexity = 12
+
+[lint.per-file-ignores]
+"tests/**" = ["S101", "S105", "S106", "S311"]
+"app/db/migrations/**" = ["E501"]
+
+[lint.flake8-bugbear]
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Query", "fastapi.Path", "fastapi.Body", "fastapi.Header", "fastapi.Security"]
+
+[format]
+quote-style = "double"
