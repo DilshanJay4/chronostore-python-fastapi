@@ -1,0 +1,30 @@
+services:
+  db:
+    networks:
+      default: {}
+      chronostore-observability:
+        aliases:
+          - chronostore-db-fastapi
+
+  api:
+    environment:
+      OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME:-chronostore-api-fastapi}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://obs-otel-collector:4317}
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+      OTEL_TRACES_SAMPLER: parentbased_traceidratio
+      OTEL_TRACES_SAMPLER_ARG: ${OTEL_TRACES_SAMPLER_ARG:-1.0}
+      OTEL_METRIC_EXPORT_INTERVAL: "15000"
+      APP_ENV: ${APP_ENV:-local}
+    labels:
+      com.chronostore.service: chronostore-api-fastapi
+      com.chronostore.backend: fastapi
+    networks:
+      default: {}
+      chronostore-observability:
+        aliases:
+          - chronostore-api-fastapi
+
+networks:
+  chronostore-observability:
+    external: true
+

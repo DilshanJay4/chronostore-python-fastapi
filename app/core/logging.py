@@ -70,8 +70,10 @@ def _scrub_exception_text(_: WrappedLogger, __: str, event_dict: EventDict) -> E
 
 
 def _static_fields(settings: Settings) -> Processor:
-    service = settings.app_name
-    environment = settings.environment.value
+    import os
+
+    service = os.getenv("OTEL_SERVICE_NAME") or settings.app_name
+    environment = os.getenv("APP_ENV") or settings.environment.value
 
     def add_static_fields(_: WrappedLogger, __: str, event_dict: EventDict) -> EventDict:
         event_dict.setdefault("service", service)
@@ -79,6 +81,20 @@ def _static_fields(settings: Settings) -> Processor:
         return event_dict
 
     return add_static_fields
+
+
+def _add_trace_context(_: WrappedLogger, __: str, event_dict: EventDict) -> EventDict:
+    try:
+        from opentelemetry import trace
+
+        span = trace.get_current_span()
+        ctx = span.get_span_context()
+        if ctx is not None and ctx.is_valid:
+            event_dict.setdefault("trace_id", format(ctx.trace_id, "032x"))
+            event_dict.setdefault("span_id", format(ctx.span_id, "016x"))
+    except Exception:
+        pass
+    return event_dict
 
 
 def configure_logging(settings: Settings) -> None:
@@ -89,6 +105,7 @@ def configure_logging(settings: Settings) -> None:
         structlog.stdlib.add_logger_name,
         structlog.processors.TimeStamper(fmt="iso", utc=True, key="timestamp"),
         _static_fields(settings),
+        _add_trace_context,
         structlog.stdlib.ExtraAdder(),
         redact_sensitive_data,
     ]

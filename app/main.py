@@ -87,6 +87,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.include_router(health.router)
     app.include_router(api_router, prefix=settings.api_v1_prefix)
+
+    from app.core.telemetry import setup_telemetry
+    from app.db.session import get_engine
+
+    setup_telemetry(app, get_engine())
     return app
 
 
