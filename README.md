@@ -1,6 +1,6 @@
 # ChronoStore API
 
-Production-ready REST API for an online wristwatch store operating in **Sri Lanka**. Built with FastAPI, PostgreSQL, SQLAlchemy 2.x, Pydantic v2, and managed with `uv`.
+Production-ready REST API for an online wristwatch store. Built with FastAPI, PostgreSQL, SQLAlchemy 2.x, Pydantic v2, and managed with `uv`.
 
 ---
 
