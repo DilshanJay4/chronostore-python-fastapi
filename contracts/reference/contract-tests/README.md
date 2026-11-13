@@ -16,11 +16,11 @@ From the `backend-mastery/` workspace root:
 
 ```bash
 # Default: targets http://host.docker.internal:8000
-docker compose -f shared/contract-tests/compose.yaml run --rm contract-tests
+docker compose -f chronostore-shared/contract-tests/compose.yaml run --rm contract-tests
 
 # Custom port or target URL:
 BASE_URL=http://host.docker.internal:8080 \
-  docker compose -f shared/contract-tests/compose.yaml run --rm contract-tests
+  docker compose -f chronostore-shared/contract-tests/compose.yaml run --rm contract-tests
 ```
 
 ## Running Standalone Inside an Individual Backend Repository
